@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -18,6 +19,38 @@ type Repository struct {
 	Private     bool   `json:"private"`
 	Description string `json:"description"`
 	HTMLURL     string `json:"html_url"`
+}
+
+func RenameRepo(owner, oldName, newName, token string) error {
+	url := fmt.Sprintf("https://api.github.com/repos/%s/%s", owner, oldName)
+
+	payload := map[string]string {
+		"name": newName
+	}
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequest("PATCH", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return err
+	}
+
+	req.Header.Set("Authorization", "Bearer " + token)
+	req.Header.Set("Accept", "application/vnd.github+json")
+	req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	return fmt.Errorf("failed to update repo. Status: %d, Response: %s", resp.StatusCode, string(body))
 }
 
 func DeleteRepo(owner, repo, token string) error {
