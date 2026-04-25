@@ -66,3 +66,39 @@ The repo listing loop pages through all user repos but has no safeguard against 
 The error from `godotenv.Load()` is discarded with `_`. If the `.env` file is malformed or missing, the user won't get a helpful message — they'll only see a generic error about `GITHUB_TOKEN` being empty, which may be confusing if the token is present but the file has syntax issues.
 
 **Fix:** Log a warning if `.env` exists but fails to parse, or at least differentiate between "file not found" (which is fine if env vars are set externally) and "file has syntax errors."
+
+---
+
+## TUI Refactor Bugs (found during code review)
+
+### 8. `buildPendingOps()` discarded user-provided rename names
+
+**File:** `tui/select.go` (original version)
+
+`buildPendingOps()` set `m.PendingOps = nil` and then tried to look up rename names from `m.PendingOps` — which it had just cleared. Every rename would fall back to the original repo name, making all renames no-ops.
+
+**Fix:** Added `RenameMap map[string]string` to the model. `buildPendingOps()` now reads new names from `RenameMap` instead of searching `PendingOps`.
+
+### 9. Tab bar highlighting was reversed
+
+**Files:** `tui/select.go`, `tui/confirm.go`
+
+The Select screen highlighted "Confirm" and the Confirm screen highlighted "Select" — the opposite of what the spec requires.
+
+**Fix:** Select screen now uses `ActiveTab.Render("Select") + InactiveTab.Render("Confirm")`. Confirm screen now uses `InactiveTab.Render("Select") + ActiveTab.Render("Confirm")`.
+
+### 10. Viewport initialized in `View()` — mutations lost
+
+**File:** `tui/confirm.go` (original version)
+
+`viewExecuting()` had a value receiver and initialized `m.Viewport` / `m.ViewportReady` on a copy that was never returned. The viewport was recreated on every render and never scrolled because `ViewportReady` was always false in the actual model.
+
+**Fix:** Viewport is now initialized in `updateConfirm()` (which returns the modified model) and `refreshViewport()` is a pointer-receiver helper called from `updateExecuting()`.
+
+### 11. Execution screen had no in-progress indicator
+
+**File:** `tui/confirm.go` (original version)
+
+The spec requires a spinner + "Deleting repo1..." indicator for the currently running operation. The implementation only rendered completed results, so the viewport was blank while the first API call was in flight.
+
+**Fix:** `formatExecResults()` now renders a "... Renaming" or "... Deleting" line for the current in-progress operation above the completed results.
