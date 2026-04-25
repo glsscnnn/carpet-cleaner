@@ -24,8 +24,8 @@ type Repository struct {
 func RenameRepo(owner, oldName, newName, token string) error {
 	url := fmt.Sprintf("https://api.github.com/repos/%s/%s", owner, oldName)
 
-	payload := map[string]string {
-		"name": newName
+	payload := map[string]string{
+		"name": newName,
 	}
 	jsonData, err := json.Marshal(payload)
 	if err != nil {
